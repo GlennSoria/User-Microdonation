@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "microdonation-user",
+    "name": "Micro Donation",
     "slug": "microdonation-user",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/mdicon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
