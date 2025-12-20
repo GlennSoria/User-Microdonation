@@ -1,11 +1,4 @@
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Alert,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { useState, useCallback } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,21 +14,17 @@ interface LinkInfo {
 
 export default function Settings() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
-  const [links, setLinks] = useState<Record<Provider, LinkStatus>>({
-    bank: 'none',
-    gcash: 'none',
-  });
+  const [links, setLinks] = useState<Record<Provider, LinkStatus>>({ bank: 'none', gcash: 'none' });
 
-  // Fetch link status from API
+  // Fetch linked accounts status from API
   const fetchLinkStatus = async () => {
+    if (!userId) return;
     try {
-      if (!userId) return;
       const res = await fetch(`${API}/get_user_links.php?user_id=${userId}`);
       const data: LinkInfo[] = await res.json();
-
       const updated: Record<Provider, LinkStatus> = { bank: 'none', gcash: 'none' };
-      data.forEach((item) => {
-        updated[item.provider] = item.status as LinkStatus;
+      data.forEach(item => {
+        updated[item.provider] = item.status;
       });
       setLinks(updated);
     } catch {
@@ -43,82 +32,53 @@ export default function Settings() {
     }
   };
 
-  // Refresh when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      fetchLinkStatus();
-    }, [])
-  );
+  useFocusEffect(useCallback(() => {
+    fetchLinkStatus();
+  }, []));
 
   const handleLinkPress = (provider: Provider) => {
     const status = links[provider];
 
-    if (status === 'pending') {
-      Alert.alert(
-        '⏳ Pending Approval',
-        `Your ${provider === 'gcash' ? 'GCash' : 'Bank'} account is still pending admin approval.`
-      );
+    if (status === 'approved') {
+      Alert.alert('✅ Already Approved', `Your ${provider === 'gcash' ? 'GCash' : 'Bank'} account is already approved.`);
       return;
     }
 
-    if (status === 'approved') {
-      Alert.alert(
-        '✅ Already Linked',
-        `Your ${provider === 'gcash' ? 'GCash' : 'Bank'} account is already approved.`
-      );
+    if (status === 'pending') {
+      Alert.alert('⏳ Pending Approval', `Your ${provider === 'gcash' ? 'GCash' : 'Bank'} account is still pending admin approval.`);
       return;
     }
 
     if (status === 'rejected') {
       Alert.alert(
         '❌ Account Rejected',
-        `Your ${provider === 'gcash' ? 'GCash' : 'Bank'} account was rejected. Please resubmit your account information.`,
+        `Your ${provider === 'gcash' ? 'GCash' : 'Bank'} account was rejected. Please resubmit.`,
         [
           {
             text: 'Resubmit',
-            onPress: () => {
-              router.push(
-                provider === 'gcash'
-                  ? `/dashboard/link-gcash?userId=${userId}`
-                  : `/dashboard/link-bank?userId=${userId}`
-              );
-            },
+            onPress: () => router.push(`/dashboard/link-${provider}?userId=${userId}`)
           },
-          { text: 'Cancel', style: 'cancel' },
+          { text: 'Cancel', style: 'cancel' }
         ]
       );
       return;
     }
 
     // If none, allow linking
-    router.push(
-      provider === 'gcash'
-        ? `/dashboard/link-gcash?userId=${userId}`
-        : `/dashboard/link-bank?userId=${userId}`
-    );
+    router.push(`/dashboard/link-${provider}?userId=${userId}`);
   };
 
   const renderStatus = (status: LinkStatus) => {
     switch (status) {
-      case 'approved':
-        return <Text style={styles.approved}>Approved</Text>;
-      case 'pending':
-        return <Text style={styles.pending}>Pending</Text>;
-      case 'rejected':
-        return <Text style={styles.rejected}>Rejected</Text>;
-      default:
-        return <Text style={styles.notLinked}>Not Linked</Text>;
+      case 'approved': return <Text style={styles.approved}>Approved</Text>;
+      case 'pending': return <Text style={styles.pending}>Pending</Text>;
+      case 'rejected': return <Text style={styles.rejected}>Rejected</Text>;
+      default: return <Text style={styles.notLinked}>Not Linked</Text>;
     }
-  };
-
-  const handleLogout = () => {
-    // Clear user data if stored, then redirect
-    router.replace('/');
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={28} color="#000" />
@@ -127,7 +87,6 @@ export default function Settings() {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Linked Accounts */}
       <View style={styles.settingsCard}>
         <Text style={styles.cardTitle}>Linked Accounts</Text>
 
@@ -143,65 +102,22 @@ export default function Settings() {
           {renderStatus(links.bank)}
         </TouchableOpacity>
       </View>
-
-      {/* Account Actions */}
-      <View style={styles.settingsCard}>
-        <Text style={styles.cardTitle}>Account Actions</Text>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#FFF" />
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.footerText}>App Version 1.0.0</Text>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F7F7' },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E0E0E0' },
   backButton: { padding: 5 },
   headerTitle: { fontSize: 22, fontWeight: '700', color: '#333' },
   placeholder: { width: 38 },
-  settingsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 15,
-    margin: 20,
-    elevation: 2,
-  },
+  settingsCard: { backgroundColor: '#FFFFFF', borderRadius: 15, padding: 15, margin: 20, elevation: 2 },
   cardTitle: { fontSize: 18, fontWeight: '600', color: '#333', marginBottom: 10 },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
-  },
+  linkRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
   linkText: { flex: 1, marginLeft: 12, fontSize: 16, fontWeight: '500', color: '#333' },
   approved: { color: '#2E8B57', fontWeight: '700' },
   pending: { color: '#FF9800', fontWeight: '700' },
   rejected: { color: '#DC3545', fontWeight: '700' },
   notLinked: { color: '#DC3545', fontWeight: '700' },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FF4500',
-    borderRadius: 10,
-    paddingVertical: 12,
-    marginTop: 10,
-  },
-  logoutButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
-  footerText: { fontSize: 12, color: '#888', textAlign: 'center', marginTop: 20 },
 });

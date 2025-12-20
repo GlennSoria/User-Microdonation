@@ -15,8 +15,8 @@ import { API } from '../api/api';
 type LinkStatus = 'none' | 'pending' | 'approved';
 
 export default function TopUp() {
-  const params = useLocalSearchParams();
-  const userId = params.userId || params.id;
+  const params = useLocalSearchParams<{ userId?: string }>();
+  const userId = params.userId;
 
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,8 +51,15 @@ export default function TopUp() {
           [
             {
               text: 'Link Account',
-              onPress: () => router.push('/dashboard/settings'),
+              onPress: () => {
+                // ✅ Pass userId when navigating
+                router.push({
+                  pathname: '/dashboard/settings',
+                  params: { userId },
+                });
+              },
             },
+            { text: 'Cancel', style: 'cancel' },
           ]
         );
       }
@@ -67,6 +74,11 @@ export default function TopUp() {
   }, []);
 
   const handleTopUp = async () => {
+    if (!userId) {
+      Alert.alert('Error', 'User ID is missing.');
+      return;
+    }
+
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid top-up amount.');
       return;
@@ -77,12 +89,14 @@ export default function TopUp() {
       return;
     }
 
-    // Check if selected method is approved
     const status =
       selectedMethod === 'bank' ? bankStatus : selectedMethod === 'gcash' ? gcashStatus : 'none';
 
     if (status !== 'approved') {
-      Alert.alert('Pending', `${selectedMethod === 'bank' ? 'Bank' : 'GCash'} is still pending approval.`);
+      Alert.alert(
+        'Pending Approval',
+        `${selectedMethod === 'bank' ? 'Bank' : 'GCash'} account is still pending approval.`
+      );
       return;
     }
 
@@ -103,7 +117,16 @@ export default function TopUp() {
 
       if (data.success) {
         Alert.alert('Success', `₱${amount} added to your wallet.`, [
-          { text: 'OK', onPress: () => router.back() },
+          {
+            text: 'OK',
+            onPress: () => {
+              // ✅ Navigate back or to dashboard with userId
+              router.push({
+                pathname: '/dashboard',
+                params: { user: JSON.stringify({ id: Number(userId) }) },
+              });
+            },
+          },
         ]);
       } else {
         Alert.alert('Error', data.message);
